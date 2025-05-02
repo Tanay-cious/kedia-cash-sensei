@@ -46,6 +46,7 @@ const parseDate = (text: string): { date: Date; remainingText: string } => {
   const words = text.toLowerCase().split(" ");
   let date = new Date();
   let dateFound = false;
+  let daysAgo = 0;
   
   // Check for date keywords
   for (let i = 0; i < words.length; i++) {
@@ -55,14 +56,31 @@ const parseDate = (text: string): { date: Date; remainingText: string } => {
       if (word === "yesterday" || word === "kal") {
         date = new Date(today);
         date.setDate(today.getDate() - 1);
+        dateFound = true;
       } else if (word === "parso") {
         date = new Date(today);
         date.setDate(today.getDate() - 2);
+        dateFound = true;
       }
       
       const remainingWords = [...words];
       remainingWords.splice(i, 1);
+      return { date, remainingText: remainingWords.join(" ") };
+    }
+    
+    // Check for "X days back" or "X din pehle" patterns
+    if ((i < words.length - 2) && 
+        /^\d+$/.test(words[i]) && 
+        (words[i+1] === "days" || words[i+1] === "din") && 
+        (words[i+2] === "back" || words[i+2] === "pehle" || words[i+2] === "ago")) {
+      
+      daysAgo = parseInt(words[i]);
+      date = new Date(today);
+      date.setDate(today.getDate() - daysAgo);
       dateFound = true;
+      
+      const remainingWords = [...words];
+      remainingWords.splice(i, 3);
       return { date, remainingText: remainingWords.join(" ") };
     }
   }
@@ -81,12 +99,16 @@ const guessCategory = (description: string): Category => {
   
   const categoryKeywords: Record<Category, string[]> = {
     "Food": ["food", "meal", "lunch", "dinner", "breakfast", "restaurant", "pizza", "burger", "dominos"],
-    "Transport": ["transport", "uber", "ola", "cab", "taxi", "metro", "bus", "train", "petrol", "gas"],
-    "Shopping": ["shop", "mall", "clothes", "dress", "shirt", "pants", "jeans", "shoes", "purchase"],
+    "Transport": ["transport", "uber", "ola", "cab", "taxi", "metro", "bus", "train", "petrol", "gas", "auto", "rick", "rickshaw", "auto-rickshaw"],
+    "Shopping": [
+      "shop", "mall", "clothes", "dress", "shirt", "pants", "jeans", "shoes", "purchase",
+      "h&m", "zara", "forever21", "uniqlo", "adidas", "nike", "puma", "levis", "myntra", "amazon", "flipkart", "ajio"
+    ],
     "Entertainment": ["movie", "theatre", "concert", "show", "netflix", "amazon", "prime", "disney", "hotstar"],
     "Bills": ["bill", "electricity", "water", "gas", "internet", "wifi", "broadband", "rent", "maintenance"],
     "Health": ["medicine", "doctor", "hospital", "clinic", "medical", "health", "healthcare", "pharmacy"],
     "Education": ["book", "course", "class", "tuition", "school", "college", "university", "education"],
+    "Lent": ["lent", "borrowed", "loan", "gave", "friend", "lending"],
     "Other": []
   };
   

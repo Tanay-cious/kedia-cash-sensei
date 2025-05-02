@@ -35,7 +35,7 @@ const Transactions: React.FC = () => {
   const [transactionText, setTransactionText] = useState("");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-  const [transactionType, setTransactionType] = useState("credit");
+  const [transactionType, setTransactionType] = useState("debit");
   
   // Filters
   const [filterStartDate, setFilterStartDate] = useState<Date | undefined>(undefined);
@@ -82,12 +82,14 @@ const Transactions: React.FC = () => {
     if (transactionType === "debit" && amount > 0) {
       // Replace the first number with its negative value
       processedText = `-${transactionText}`;
+    } else if (transactionType === "credit" && amount < 0) {
+      // Ensure credit transactions are always positive
+      processedText = transactionText.replace(/^-/, '');
     }
     
     addTransaction(processedText, selectedDate);
     setTransactionText("");
     setSelectedDate(undefined);
-    setTransactionType("credit");
   };
 
   const clearFilters = () => {
@@ -107,7 +109,125 @@ const Transactions: React.FC = () => {
       <Header />
       <div className="container max-w-md mx-auto pt-20 px-4">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold mb-4">Transactions</h1>
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-2xl font-bold">Transactions</h1>
+            <Sheet open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen}>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-1">
+                  <Filter className="h-4 w-4" />
+                  Filter
+                </Button>
+              </SheetTrigger>
+              <SheetContent>
+                <SheetHeader>
+                  <SheetTitle>Filter Transactions</SheetTitle>
+                  <SheetDescription>
+                    Apply filters to view specific transactions
+                  </SheetDescription>
+                </SheetHeader>
+                
+                <div className="py-4 space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Date Range</label>
+                    <div className="flex gap-2">
+                      <Popover open={isStartDatePickerOpen} onOpenChange={setIsStartDatePickerOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !filterStartDate && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {filterStartDate ? format(filterStartDate, "PP") : <span>Start date</span>}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={filterStartDate}
+                            onSelect={(date) => {
+                              setFilterStartDate(date);
+                              setIsStartDatePickerOpen(false);
+                            }}
+                            initialFocus
+                            className="p-3 pointer-events-auto"
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <div className="flex gap-2">
+                      <Popover open={isEndDatePickerOpen} onOpenChange={setIsEndDatePickerOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !filterEndDate && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {filterEndDate ? format(filterEndDate, "PP") : <span>End date</span>}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={filterEndDate}
+                            onSelect={(date) => {
+                              setFilterEndDate(date);
+                              setIsEndDatePickerOpen(false);
+                            }}
+                            initialFocus
+                            className="p-3 pointer-events-auto"
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Category</label>
+                    <Select value={filterCategory} onValueChange={setFilterCategory}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Categories</SelectItem>
+                        {CATEGORIES.map((category) => (
+                          <SelectItem key={category} value={category}>{category}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Transaction Type</label>
+                    <Select value={filterType} onValueChange={setFilterType}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Transactions</SelectItem>
+                        <SelectItem value="credit">Credit</SelectItem>
+                        <SelectItem value="debit">Debit</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                
+                <SheetFooter className="flex justify-between sm:justify-between">
+                  <Button variant="outline" onClick={clearFilters}>
+                    Clear Filters
+                  </Button>
+                  <Button onClick={applyFilters}>
+                    Apply Filters
+                  </Button>
+                </SheetFooter>
+              </SheetContent>
+            </Sheet>
+          </div>
           
           {user ? (
             <form onSubmit={handleSubmit} className="space-y-3">
@@ -165,123 +285,6 @@ const Transactions: React.FC = () => {
                 >
                   Add
                 </Button>
-                
-                <Sheet open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen}>
-                  <SheetTrigger asChild>
-                    <Button variant="outline" className="gap-2">
-                      <Filter className="h-4 w-4" />
-                      Filter
-                    </Button>
-                  </SheetTrigger>
-                  <SheetContent>
-                    <SheetHeader>
-                      <SheetTitle>Filter Transactions</SheetTitle>
-                      <SheetDescription>
-                        Apply filters to view specific transactions
-                      </SheetDescription>
-                    </SheetHeader>
-                    
-                    <div className="py-4 space-y-4">
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Date Range</label>
-                        <div className="flex gap-2">
-                          <Popover open={isStartDatePickerOpen} onOpenChange={setIsStartDatePickerOpen}>
-                            <PopoverTrigger asChild>
-                              <Button
-                                variant="outline"
-                                className={cn(
-                                  "w-full justify-start text-left font-normal",
-                                  !filterStartDate && "text-muted-foreground"
-                                )}
-                              >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {filterStartDate ? format(filterStartDate, "PP") : <span>Start date</span>}
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                              <Calendar
-                                mode="single"
-                                selected={filterStartDate}
-                                onSelect={(date) => {
-                                  setFilterStartDate(date);
-                                  setIsStartDatePickerOpen(false);
-                                }}
-                                initialFocus
-                                className="p-3 pointer-events-auto"
-                              />
-                            </PopoverContent>
-                          </Popover>
-                        </div>
-                        <div className="flex gap-2">
-                          <Popover open={isEndDatePickerOpen} onOpenChange={setIsEndDatePickerOpen}>
-                            <PopoverTrigger asChild>
-                              <Button
-                                variant="outline"
-                                className={cn(
-                                  "w-full justify-start text-left font-normal",
-                                  !filterEndDate && "text-muted-foreground"
-                                )}
-                              >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {filterEndDate ? format(filterEndDate, "PP") : <span>End date</span>}
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                              <Calendar
-                                mode="single"
-                                selected={filterEndDate}
-                                onSelect={(date) => {
-                                  setFilterEndDate(date);
-                                  setIsEndDatePickerOpen(false);
-                                }}
-                                initialFocus
-                                className="p-3 pointer-events-auto"
-                              />
-                            </PopoverContent>
-                          </Popover>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Category</label>
-                        <Select value={filterCategory} onValueChange={setFilterCategory}>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select category" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All Categories</SelectItem>
-                            {CATEGORIES.map((category) => (
-                              <SelectItem key={category} value={category}>{category}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Transaction Type</label>
-                        <Select value={filterType} onValueChange={setFilterType}>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All Transactions</SelectItem>
-                            <SelectItem value="credit">Credit</SelectItem>
-                            <SelectItem value="debit">Debit</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    
-                    <SheetFooter className="flex justify-between sm:justify-between">
-                      <Button variant="outline" onClick={clearFilters}>
-                        Clear Filters
-                      </Button>
-                      <Button onClick={applyFilters}>
-                        Apply Filters
-                      </Button>
-                    </SheetFooter>
-                  </SheetContent>
-                </Sheet>
               </div>
               
               {selectedDate && (

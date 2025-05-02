@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useTransactions, CATEGORIES, Transaction } from "@/context/TransactionContext";
@@ -22,6 +21,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   Bills: "#607D8B",      // Blue Gray
   Health: "#4CAF50",     // Green
   Education: "#9E9E9E",  // Gray
+  Lent: "#FFC107",       // Amber
   Other: "#795548",      // Brown
 };
 

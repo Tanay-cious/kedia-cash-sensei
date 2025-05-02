@@ -13,6 +13,7 @@ export type Category =
   | "Bills" 
   | "Health" 
   | "Education" 
+  | "Lent"
   | "Other";
 
 export const CATEGORIES: Category[] = [
@@ -23,6 +24,7 @@ export const CATEGORIES: Category[] = [
   "Bills",
   "Health",
   "Education",
+  "Lent",
   "Other",
 ];
 
