@@ -11,7 +11,7 @@ import { Card } from "@/components/ui/card";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import TransactionItem from "@/components/TransactionItem";
 import { cn } from "@/lib/utils";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { ChartContainer } from "@/components/ui/chart";
 
 // Consistent color map for categories
 const CATEGORY_COLORS: Record<string, string> = {
@@ -179,13 +179,9 @@ const Analytics: React.FC = () => {
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="month" />
                       <YAxis />
-                      <ChartTooltip
-                        content={props => (
-                          <ChartTooltipContent
-                            {...props}
-                            formatter={(value) => `₹${Number(value).toFixed(2)}`}
-                          />
-                        )}
+                      <Tooltip 
+                        formatter={(value) => `₹${Number(value).toFixed(2)}`}
+                        labelFormatter={(label) => `Month: ${label}`}
                       />
                       <Bar dataKey="debit" fill="#FF5252" name="Debit" />
                     </BarChart>
