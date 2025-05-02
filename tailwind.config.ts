@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,6 +62,27 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				kedia: {
+					green: {
+						100: "#E8F5E9",
+						200: "#C8E6C9",
+						300: "#A5D6A7",
+						400: "#81C784",
+						500: "#4CAF50",
+						600: "#388E3C",
+						700: "#2E7D32",
+					},
+					accent: "#FFC107",
+					gray: {
+						100: "#F5F5F5",
+						200: "#EEEEEE",
+						300: "#E0E0E0",
+						400: "#BDBDBD",
+						500: "#9E9E9E",
+						600: "#757575",
+						700: "#616161",
+					}
 				}
 			},
 			borderRadius: {
