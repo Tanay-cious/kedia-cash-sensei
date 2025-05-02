@@ -44,32 +44,33 @@ const TransactionItem: React.FC<TransactionItemProps> = ({ transaction }) => {
   const [editedCategory, setEditedCategory] = useState(transaction.category);
   const [editedDate, setEditedDate] = useState(new Date(transaction.date));
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-  const [transactionType, setTransactionType] = useState(transaction.amount >= 0 ? "credit" : "debit");
+  const [transactionType, setTransactionType] = useState("debit");
 
   const handleSaveChanges = () => {
-    const amount = transactionType === "debit" 
-      ? -Math.abs(parseFloat(editedAmount)) 
-      : Math.abs(parseFloat(editedAmount));
-    
-    editTransaction(transaction.id, {
-      amount,
-      description: editedDescription,
-      category: editedCategory as any,
-      date: editedDate
-    });
-    setIsExpanded(false);
-  };
+  const amount = transactionType === "debit" 
+    ? -Math.abs(parseFloat(editedAmount)) 
+    : Math.abs(parseFloat(editedAmount));
+  
+  editTransaction(transaction.id, {
+    amount,
+    description: editedDescription,
+    category: editedCategory as any,
+    date: editedDate
+  });
+  setIsExpanded(false);
+};
 
   const handleCategoryChange = (value: string) => {
     setEditedCategory(value as any);
   };
 
   const handleTypeChange = (value: string) => {
-    setTransactionType(value);
-    // Update amount sign based on transaction type
-    const absAmount = Math.abs(parseFloat(editedAmount));
-    setEditedAmount(absAmount.toString());
-  };
+  setTransactionType(value);
+  // Update amount sign based on transaction type
+  const absAmount = Math.abs(parseFloat(editedAmount));
+  setEditedAmount(absAmount.toString());
+};
+
 
   const getCategoryColor = (category: string) => {
     const colorMap: Record<string, string> = {
