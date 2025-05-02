@@ -7,6 +7,11 @@ import { Button } from "@/components/ui/button";
 const Header: React.FC = () => {
   const { user, logout } = useAuth();
 
+  // Get the user's name from metadata or use email as fallback
+  const userName = user 
+    ? (user.user_metadata?.name || user.email?.split('@')[0] || 'User') 
+    : '';
+
   return (
     <header className="bg-white shadow-sm h-16 flex items-center justify-between px-4 fixed top-0 left-0 right-0 z-10">
       <div className="flex items-center">
@@ -15,7 +20,7 @@ const Header: React.FC = () => {
       <div>
         {user ? (
           <div className="flex items-center gap-2">
-            <span className="text-sm hidden sm:inline">Hello, {user.name}</span>
+            <span className="text-sm hidden sm:inline">Hello, {userName}</span>
             <Button 
               variant="outline" 
               size="sm" 
