@@ -72,17 +72,27 @@ const TransactionItem: React.FC<TransactionItemProps> = ({ transaction }) => {
 };
 
 
-  const getCategoryColor = (category: string) => {
-    const colorMap: Record<string, string> = {
-      Food: "bg-red-100 text-red-800",
-      Transport: "bg-blue-100 text-blue-800",
-      Shopping: "bg-purple-100 text-purple-800",
-      Entertainment: "bg-yellow-100 text-yellow-800",
-      Bills: "bg-gray-100 text-gray-800",
-      Health: "bg-green-100 text-green-800",
-      Education: "bg-indigo-100 text-indigo-800",
-      Other: "bg-gray-100 text-gray-600"
-    };
+  const getCategoryColor = (category: string, transactionType: string) => {
+  const colorMap: Record<string, string> = {
+    Food: "bg-red-100 text-red-800",
+    Transport: "bg-blue-100 text-blue-800",
+    Shopping: "bg-purple-100 text-purple-800",
+    Entertainment: "bg-yellow-100 text-yellow-800",
+    Bills: "bg-gray-100 text-gray-800",
+    Health: "bg-green-100 text-green-800",
+    Education: "bg-indigo-100 text-indigo-800",
+    Other: "bg-gray-100 text-gray-600"
+  };
+
+  // Default color based on category
+  const baseColor = colorMap[category] || "bg-gray-100 text-gray-600";
+  
+  // Apply different colors based on transaction type
+  return transactionType === "debit"
+    ? `${baseColor} text-red-600` // Red for debit
+    : `${baseColor} text-green-600`; // Green for credit
+};
+
     
     return colorMap[category] || "bg-gray-100 text-gray-600";
   };
@@ -139,7 +149,7 @@ const TransactionItem: React.FC<TransactionItemProps> = ({ transaction }) => {
             {transaction.description || "No description"}
           </p>
           <div className="flex justify-between items-center mt-2">
-            <span className={`text-xs px-2 py-1 rounded-full ${getCategoryColor(transaction.category)}`}>
+            <span className={`text-xs px-2 py-1 rounded-full ${getCategoryColor(transaction.category, transactionType)}`}>
               {transaction.category}
             </span>
             <span className="text-xs text-gray-500">
