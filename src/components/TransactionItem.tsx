@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Transaction, CATEGORIES, useTransactions } from "@/context/TransactionContext";
 import {
   AlertDialog,
@@ -22,6 +23,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { CalendarIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface TransactionItemProps {
   transaction: Transaction;
@@ -30,9 +39,36 @@ interface TransactionItemProps {
 const TransactionItem: React.FC<TransactionItemProps> = ({ transaction }) => {
   const { editTransaction, deleteTransaction } = useTransactions();
   const [isExpanded, setIsExpanded] = useState(false);
+  const [editedAmount, setEditedAmount] = useState(transaction.amount.toString());
+  const [editedDescription, setEditedDescription] = useState(transaction.description);
+  const [editedCategory, setEditedCategory] = useState(transaction.category);
+  const [editedDate, setEditedDate] = useState(new Date(transaction.date));
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [transactionType, setTransactionType] = useState(transaction.amount >= 0 ? "credit" : "debit");
+
+  const handleSaveChanges = () => {
+    const amount = transactionType === "debit" 
+      ? -Math.abs(parseFloat(editedAmount)) 
+      : Math.abs(parseFloat(editedAmount));
+    
+    editTransaction(transaction.id, {
+      amount,
+      description: editedDescription,
+      category: editedCategory as any,
+      date: editedDate
+    });
+    setIsExpanded(false);
+  };
 
   const handleCategoryChange = (value: string) => {
-    editTransaction(transaction.id, { category: value as any });
+    setEditedCategory(value as any);
+  };
+
+  const handleTypeChange = (value: string) => {
+    setTransactionType(value);
+    // Update amount sign based on transaction type
+    const absAmount = Math.abs(parseFloat(editedAmount));
+    setEditedAmount(absAmount.toString());
   };
 
   const getCategoryColor = (category: string) => {
@@ -55,7 +91,9 @@ const TransactionItem: React.FC<TransactionItemProps> = ({ transaction }) => {
       <div className="flex justify-between">
         <div className="flex-1">
           <div className="flex items-center justify-between">
-            <span className="font-medium text-lg">₹{transaction.amount.toFixed(2)}</span>
+            <span className={`font-medium text-lg ${transaction.amount < 0 ? "text-red-600" : "text-kedia-green-600"}`}>
+              {transaction.amount < 0 ? "-" : ""}₹{Math.abs(transaction.amount).toFixed(2)}
+            </span>
             <div className="flex space-x-1 items-center">
               <Button 
                 variant="ghost" 
@@ -111,13 +149,44 @@ const TransactionItem: React.FC<TransactionItemProps> = ({ transaction }) => {
       </div>
       
       {isExpanded && (
-        <div className="mt-3 pt-3 border-t">
-          <div className="flex items-center mt-2">
+        <div className="mt-3 pt-3 border-t space-y-3">
+          <div className="flex items-center">
+            <span className="text-sm text-gray-500 w-24">Type:</span>
+            <Select value={transactionType} onValueChange={handleTypeChange}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="credit">Credit</SelectItem>
+                <SelectItem value="debit">Debit</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="flex items-center">
+            <span className="text-sm text-gray-500 w-24">Amount:</span>
+            <Input 
+              value={editedAmount} 
+              onChange={(e) => setEditedAmount(e.target.value)}
+              type="number"
+              min="0"
+              step="0.01"
+              className="w-full"
+            />
+          </div>
+          
+          <div className="flex items-center">
+            <span className="text-sm text-gray-500 w-24">Description:</span>
+            <Input 
+              value={editedDescription} 
+              onChange={(e) => setEditedDescription(e.target.value)}
+              className="w-full"
+            />
+          </div>
+          
+          <div className="flex items-center">
             <span className="text-sm text-gray-500 w-24">Category:</span>
-            <Select 
-              value={transaction.category} 
-              onValueChange={handleCategoryChange}
-            >
+            <Select value={editedCategory} onValueChange={handleCategoryChange}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select Category" />
               </SelectTrigger>
@@ -129,6 +198,52 @@ const TransactionItem: React.FC<TransactionItemProps> = ({ transaction }) => {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          
+          <div className="flex items-center">
+            <span className="text-sm text-gray-500 w-24">Date:</span>
+            <div className="flex-1">
+              <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !editedDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {editedDate ? format(editedDate, "PPP") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={editedDate}
+                    onSelect={(date) => {
+                      if (date) {
+                        setEditedDate(date);
+                        setIsDatePickerOpen(false);
+                      }
+                    }}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+          
+          <div className="flex justify-end space-x-2 pt-2">
+            <Button variant="outline" onClick={() => setIsExpanded(false)}>
+              Cancel
+            </Button>
+            <Button 
+              className="bg-kedia-green-600 hover:bg-kedia-green-700"
+              onClick={handleSaveChanges}
+            >
+              Save Changes
+            </Button>
           </div>
         </div>
       )}

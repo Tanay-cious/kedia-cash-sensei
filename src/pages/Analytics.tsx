@@ -4,23 +4,26 @@ import { useAuth } from "@/context/AuthContext";
 import { useTransactions, CATEGORIES, Transaction } from "@/context/TransactionContext";
 import Header from "@/components/Header";
 import BottomNavigation from "@/components/BottomNavigation";
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
-import { format, startOfMonth, endOfMonth, subMonths, addMonths } from "date-fns";
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
+import { format, startOfMonth, endOfMonth, subMonths, addMonths, eachMonthOfInterval, subYears } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import TransactionItem from "@/components/TransactionItem";
+import { cn } from "@/lib/utils";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 
-const COLORS = [
-  "#4CAF50", // Green
-  "#2196F3", // Blue
-  "#9C27B0", // Purple
-  "#FF9800", // Orange
-  "#F44336", // Red
-  "#795548", // Brown
-  "#607D8B", // Blue Gray
-  "#9E9E9E", // Gray
-];
+// Consistent color map for categories
+const CATEGORY_COLORS: Record<string, string> = {
+  Food: "#F44336",       // Red
+  Transport: "#2196F3",  // Blue
+  Shopping: "#9C27B0",   // Purple
+  Entertainment: "#FF9800", // Orange
+  Bills: "#607D8B",      // Blue Gray
+  Health: "#4CAF50",     // Green
+  Education: "#9E9E9E",  // Gray
+  Other: "#795548",      // Brown
+};
 
 const Analytics: React.FC = () => {
   const { user } = useAuth();
@@ -38,17 +41,47 @@ const Analytics: React.FC = () => {
     return getCategoryTotals(startDate, endDate);
   }, [getCategoryTotals, startDate, endDate]);
   
-  // Convert category totals to chart data
-  const chartData = useMemo(() => {
-    return Object.entries(categoryTotals).map(([category, amount]) => ({
-      name: category,
-      value: amount
-    }));
+  // Convert category totals to chart data with consistent colors
+  const pieChartData = useMemo(() => {
+    return Object.entries(categoryTotals)
+      .filter(([_, amount]) => amount > 0) // Only include credits (positive amounts)
+      .map(([category, amount]) => ({
+        name: category,
+        value: amount,
+        color: CATEGORY_COLORS[category] || "#000000"
+      }));
   }, [categoryTotals]);
   
+  // Calculate monthly debits for the past year
+  const monthlyDebitsData = useMemo(() => {
+    const endMonth = new Date();
+    const startMonth = subYears(endMonth, 1);
+    
+    const months = eachMonthOfInterval({
+      start: startMonth,
+      end: endMonth
+    });
+    
+    return months.map(month => {
+      const monthStart = startOfMonth(month);
+      const monthEnd = endOfMonth(month);
+      const monthlyTransactions = getTransactionsByDateRange(monthStart, monthEnd);
+      
+      // Sum only debit (negative) transactions
+      const debitTotal = monthlyTransactions
+        .filter(t => t.amount < 0)
+        .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+      
+      return {
+        month: format(month, "MMM"),
+        debit: debitTotal
+      };
+    });
+  }, [getTransactionsByDateRange]);
+  
   const totalAmount = useMemo(() => {
-    return chartData.reduce((sum, entry) => sum + entry.value, 0);
-  }, [chartData]);
+    return pieChartData.reduce((sum, entry) => sum + entry.value, 0);
+  }, [pieChartData]);
   
   const handlePreviousMonth = () => {
     setCurrentMonth(prevMonth => subMonths(prevMonth, 1));
@@ -98,11 +131,11 @@ const Analytics: React.FC = () => {
               </p>
               
               <div className="h-[300px] mt-4">
-                {chartData.length > 0 ? (
+                {pieChartData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={chartData}
+                        data={pieChartData}
                         cx="50%"
                         cy="50%"
                         labelLine={false}
@@ -111,8 +144,8 @@ const Analytics: React.FC = () => {
                         fill="#8884d8"
                         dataKey="value"
                       >
-                        {chartData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        {pieChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
                       <Legend />
@@ -122,6 +155,44 @@ const Analytics: React.FC = () => {
                 ) : (
                   <div className="h-full flex items-center justify-center text-gray-500">
                     No spending data for this month
+                  </div>
+                )}
+              </div>
+            </Card>
+            
+            <Card className="p-4 mb-6">
+              <h3 className="font-medium text-gray-700 mb-2">Monthly Debits</h3>
+              <div className="h-[300px] mt-4">
+                {monthlyDebitsData.some(item => item.debit > 0) ? (
+                  <ChartContainer
+                    config={{
+                      debit: {
+                        label: "Debit",
+                        color: "#FF5252",
+                      },
+                    }}
+                  >
+                    <BarChart
+                      data={monthlyDebitsData}
+                      margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="month" />
+                      <YAxis />
+                      <ChartTooltip
+                        content={props => (
+                          <ChartTooltipContent
+                            {...props}
+                            formatter={(value) => `₹${Number(value).toFixed(2)}`}
+                          />
+                        )}
+                      />
+                      <Bar dataKey="debit" fill="#FF5252" name="Debit" />
+                    </BarChart>
+                  </ChartContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-gray-500">
+                    No debit data available
                   </div>
                 )}
               </div>
