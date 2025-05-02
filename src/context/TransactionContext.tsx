@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { useAuth } from "./AuthContext";
 import { toast } from "@/components/ui/sonner";
 import { parseTransactionText } from "@/lib/transaction-parser";
+import { supabase } from "@/integrations/supabase/client";
 
 export type Category = 
   | "Food" 
@@ -36,59 +37,79 @@ export type Transaction = {
 
 type TransactionContextType = {
   transactions: Transaction[];
-  addTransaction: (transactionText: string, overrideDate?: Date) => void;
-  editTransaction: (id: string, updatedTransaction: Partial<Transaction>) => void;
-  deleteTransaction: (id: string) => void;
+  isLoading: boolean;
+  addTransaction: (transactionText: string, overrideDate?: Date) => Promise<void>;
+  editTransaction: (id: string, updatedTransaction: Partial<Transaction>) => Promise<void>;
+  deleteTransaction: (id: string) => Promise<void>;
   getTransactionsByDateRange: (startDate: Date, endDate: Date) => Transaction[];
   getCategoryTotals: (startDate?: Date, endDate?: Date) => Record<Category, number>;
+  fetchTransactions: () => Promise<void>;
 };
 
 const TransactionContext = createContext<TransactionContextType>({
   transactions: [],
-  addTransaction: () => {},
-  editTransaction: () => {},
-  deleteTransaction: () => {},
+  isLoading: false,
+  addTransaction: async () => {},
+  editTransaction: async () => {},
+  deleteTransaction: async () => {},
   getTransactionsByDateRange: () => [],
   getCategoryTotals: () => ({} as Record<Category, number>),
+  fetchTransactions: async () => {},
 });
 
 export const useTransactions = () => useContext(TransactionContext);
 
 export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const { user } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
+  const { user, isAuthenticated } = useAuth();
 
-  // Load transactions from localStorage when component mounts or user changes
+  // Fetch transactions when user authentication state changes
   useEffect(() => {
-    if (user) {
-      const storedTransactions = localStorage.getItem(`kedia_transactions_${user.id}`);
-      if (storedTransactions) {
-        try {
-          // Parse the stored transactions and convert date strings back to Date objects
-          const parsedTransactions = JSON.parse(storedTransactions).map((t: any) => ({
-            ...t,
-            date: new Date(t.date)
-          }));
-          setTransactions(parsedTransactions);
-        } catch (error) {
-          console.error("Failed to parse stored transactions:", error);
-          localStorage.removeItem(`kedia_transactions_${user.id}`);
-        }
-      }
+    if (isAuthenticated && user) {
+      fetchTransactions();
     } else {
-      // Clear transactions when user logs out
       setTransactions([]);
     }
-  }, [user]);
+  }, [isAuthenticated, user]);
 
-  // Save transactions to localStorage whenever they change
-  useEffect(() => {
-    if (user && transactions.length > 0) {
-      localStorage.setItem(`kedia_transactions_${user.id}`, JSON.stringify(transactions));
+  const fetchTransactions = async () => {
+    if (!isAuthenticated || !user) {
+      return;
     }
-  }, [transactions, user]);
 
-  const addTransaction = (transactionText: string, overrideDate?: Date) => {
+    try {
+      setIsLoading(true);
+      
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('*')
+        .order('date', { ascending: false });
+      
+      if (error) {
+        throw error;
+      }
+
+      // Convert the data to match our Transaction type
+      const formattedTransactions: Transaction[] = data.map(t => ({
+        id: t.id,
+        amount: Number(t.amount),
+        description: t.description,
+        category: t.category as Category,
+        date: new Date(t.date),
+        userId: t.user_id
+      }));
+
+      setTransactions(formattedTransactions);
+    } catch (error) {
+      console.error("Error fetching transactions:", error);
+      toast.error("Failed to load transactions");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const addTransaction = async (transactionText: string, overrideDate?: Date) => {
     if (!user) {
       toast.error("Please log in to add transactions");
       return;
@@ -96,45 +117,120 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     try {
       const { amount, description, category, date } = parseTransactionText(transactionText);
+      const transactionDate = overrideDate || date;
       
+      const { data, error } = await supabase
+        .from('transactions')
+        .insert([
+          { 
+            amount, 
+            description, 
+            category, 
+            date: transactionDate.toISOString(),
+            user_id: user.id 
+          }
+        ])
+        .select()
+        .single();
+      
+      if (error) {
+        throw error;
+      }
+
       const newTransaction: Transaction = {
-        id: Date.now().toString(),
-        amount,
-        description,
-        category,
-        date: overrideDate || date,
-        userId: user.id,
+        id: data.id,
+        amount: Number(data.amount),
+        description: data.description,
+        category: data.category as Category,
+        date: new Date(data.date),
+        userId: data.user_id
       };
 
       setTransactions(prev => [newTransaction, ...prev]);
       toast.success("Transaction added successfully");
-    } catch (error) {
-      toast.error("Failed to add transaction. Please check your input.");
+    } catch (error: any) {
+      console.error("Failed to add transaction:", error);
+      toast.error(error.message || "Failed to add transaction. Please check your input.");
     }
   };
 
-  const editTransaction = (id: string, updatedTransaction: Partial<Transaction>) => {
+  const editTransaction = async (id: string, updatedTransaction: Partial<Transaction>) => {
     if (!user) {
       toast.error("Please log in to edit transactions");
       return;
     }
 
-    setTransactions(prev =>
-      prev.map(t =>
-        t.id === id ? { ...t, ...updatedTransaction } : t
-      )
-    );
-    toast.success("Transaction updated");
+    try {
+      // Convert any Date objects to ISO strings for the database
+      const dataToUpdate: any = { ...updatedTransaction };
+      
+      if (dataToUpdate.date instanceof Date) {
+        dataToUpdate.date = dataToUpdate.date.toISOString();
+      }
+      
+      // Remove userId from the update payload if present (use user_id for DB)
+      if (dataToUpdate.userId) {
+        delete dataToUpdate.userId;
+      }
+
+      // Convert field names to match database schema
+      if (dataToUpdate.userId) {
+        dataToUpdate.user_id = dataToUpdate.userId;
+        delete dataToUpdate.userId;
+      }
+
+      const { error } = await supabase
+        .from('transactions')
+        .update(dataToUpdate)
+        .eq('id', id);
+      
+      if (error) {
+        throw error;
+      }
+
+      // Update the local state with the updated transaction
+      setTransactions(prev =>
+        prev.map(t =>
+          t.id === id 
+            ? { 
+                ...t, 
+                ...updatedTransaction,
+                // Ensure date is a Date object
+                date: updatedTransaction.date || t.date 
+              } 
+            : t
+        )
+      );
+      
+      toast.success("Transaction updated");
+    } catch (error: any) {
+      console.error("Failed to update transaction:", error);
+      toast.error(error.message || "Failed to update transaction");
+    }
   };
 
-  const deleteTransaction = (id: string) => {
+  const deleteTransaction = async (id: string) => {
     if (!user) {
       toast.error("Please log in to delete transactions");
       return;
     }
 
-    setTransactions(prev => prev.filter(t => t.id !== id));
-    toast.success("Transaction deleted");
+    try {
+      const { error } = await supabase
+        .from('transactions')
+        .delete()
+        .eq('id', id);
+      
+      if (error) {
+        throw error;
+      }
+
+      setTransactions(prev => prev.filter(t => t.id !== id));
+      toast.success("Transaction deleted");
+    } catch (error: any) {
+      console.error("Failed to delete transaction:", error);
+      toast.error(error.message || "Failed to delete transaction");
+    }
   };
 
   const getTransactionsByDateRange = (startDate: Date, endDate: Date): Transaction[] => {
@@ -162,11 +258,13 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     <TransactionContext.Provider
       value={{
         transactions,
+        isLoading,
         addTransaction,
         editTransaction,
         deleteTransaction,
         getTransactionsByDateRange,
         getCategoryTotals,
+        fetchTransactions,
       }}
     >
       {children}
