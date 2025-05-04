@@ -1,7 +1,7 @@
 
 import React, { useState } from "react";
 import { format } from "date-fns";
-import { ArrowRight, Edit, Trash2 } from "lucide-react";
+import { Edit, Trash2 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -39,12 +39,12 @@ interface TransactionItemProps {
 const TransactionItem: React.FC<TransactionItemProps> = ({ transaction }) => {
   const { editTransaction, deleteTransaction } = useTransactions();
   const [isExpanded, setIsExpanded] = useState(false);
-  const [editedAmount, setEditedAmount] = useState(transaction.amount.toString());
+  const [editedAmount, setEditedAmount] = useState(Math.abs(transaction.amount).toString());
   const [editedDescription, setEditedDescription] = useState(transaction.description);
   const [editedCategory, setEditedCategory] = useState(transaction.category);
   const [editedDate, setEditedDate] = useState(new Date(transaction.date));
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-  const [transactionType, setTransactionType] = useState("debit");
+  const [transactionType, setTransactionType] = useState(transaction.amount < 0 ? "debit" : "credit");
 
   const handleSaveChanges = () => {
     const amount = transactionType === "debit" 
@@ -66,30 +66,29 @@ const TransactionItem: React.FC<TransactionItemProps> = ({ transaction }) => {
 
   const handleTypeChange = (value: string) => {
     setTransactionType(value);
-    // Update amount sign based on transaction type
-    const absAmount = Math.abs(parseFloat(editedAmount));
-    setEditedAmount(absAmount.toString());
+    // No need to modify the amount here - we'll apply the sign when saving
   };
 
   const getCategoryColor = (category: string, transactionType: string) => {
     const colorMap: Record<string, string> = {
-      Food: "bg-red-100 text-red-800",
-      Transport: "bg-blue-100 text-blue-800",
-      Shopping: "bg-purple-100 text-purple-800",
-      Entertainment: "bg-yellow-100 text-yellow-800",
-      Bills: "bg-gray-100 text-gray-800",
-      Health: "bg-green-100 text-green-800",
-      Education: "bg-indigo-100 text-indigo-800",
-      Other: "bg-gray-100 text-gray-600"
+      Food: "bg-red-100",
+      Transport: "bg-blue-100",
+      Shopping: "bg-purple-100",
+      Entertainment: "bg-yellow-100",
+      Bills: "bg-gray-100",
+      Health: "bg-green-100",
+      Education: "bg-indigo-100",
+      Lent: "bg-orange-100",
+      Other: "bg-gray-100"
     };
 
     // Default color based on category
-    const baseColor = colorMap[category] || "bg-gray-100 text-gray-600";
+    const baseColor = colorMap[category] || "bg-gray-100";
     
-    // Apply different colors based on transaction type
-    return transactionType === "debit"
-      ? `${baseColor} text-red-600` // Red for debit
-      : `${baseColor} text-green-600`; // Green for credit
+    // Add text color based on transaction type
+    const textColor = transactionType === "debit" ? "text-red-600" : "text-green-600";
+    
+    return `${baseColor} ${textColor}`;
   };
 
   return (
@@ -97,7 +96,7 @@ const TransactionItem: React.FC<TransactionItemProps> = ({ transaction }) => {
       <div className="flex justify-between">
         <div className="flex-1">
           <div className="flex items-center justify-between">
-            <span className={`font-medium text-lg ${transaction.amount < 0 ? "text-red-600" : "text-kedia-green-600"}`}>
+            <span className={`font-medium text-lg ${transaction.amount < 0 ? "text-red-600" : "text-green-600"}`}>
               {transaction.amount < 0 ? "-" : ""}₹{Math.abs(transaction.amount).toFixed(2)}
             </span>
             <div className="flex space-x-1 items-center">
@@ -158,7 +157,7 @@ const TransactionItem: React.FC<TransactionItemProps> = ({ transaction }) => {
         <div className="mt-3 pt-3 border-t space-y-3">
           <div className="flex items-center">
             <span className="text-sm text-gray-500 w-24">Type:</span>
-            <Select value={transaction.amount < 0 ? "debit" : "credit"} onValueChange={handleTypeChange}>
+            <Select value={transactionType} onValueChange={handleTypeChange}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select Type" />
               </SelectTrigger>

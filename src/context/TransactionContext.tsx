@@ -40,7 +40,7 @@ export type Transaction = {
 type TransactionContextType = {
   transactions: Transaction[];
   isLoading: boolean;
-  addTransaction: (transactionText: string, overrideDate?: Date) => Promise<void>;
+  addTransaction: (transactionText: string, overrideDate?: Date, transactionType?: string) => Promise<void>;
   editTransaction: (id: string, updatedTransaction: Partial<Transaction>) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
   getTransactionsByDateRange: (startDate: Date, endDate: Date) => Transaction[];
@@ -111,15 +111,20 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   };
 
-  const addTransaction = async (transactionText: string, overrideDate?: Date) => {
+  const addTransaction = async (transactionText: string, overrideDate?: Date, transactionType: string = "debit") => {
     if (!user) {
       toast.error("Please log in to add transactions");
       return;
     }
 
     try {
-      const { amount, description, category, date } = parseTransactionText(transactionText);
+      const { amount: parsedAmount, description, category, date } = parseTransactionText(transactionText);
       const transactionDate = overrideDate || date;
+      
+      // Determine the sign of the amount based on transaction type
+      const amount = transactionType === "debit" 
+        ? -Math.abs(parsedAmount)  // Make negative for debit
+        : Math.abs(parsedAmount);  // Keep positive for credit
       
       const { data, error } = await supabase
         .from('transactions')
@@ -129,7 +134,8 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
             description, 
             category, 
             date: transactionDate.toISOString(),
-            user_id: user.id 
+            user_id: user.id,
+            transaction_type: transactionType // Store the transaction type
           }
         ])
         .select()
