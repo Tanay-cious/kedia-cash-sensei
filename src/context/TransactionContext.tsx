@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useAuth } from "./AuthContext";
 import { toast } from "@/components/ui/sonner";
@@ -122,6 +121,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const transactionDate = overrideDate || date;
       
       // Determine the sign of the amount based on transaction type
+      // For now we'll just store this in the amount itself
       const amount = transactionType === "debit" 
         ? -Math.abs(parsedAmount)  // Make negative for debit
         : Math.abs(parsedAmount);  // Keep positive for credit
@@ -134,8 +134,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
             description, 
             category, 
             date: transactionDate.toISOString(),
-            user_id: user.id,
-            transaction_type: transactionType // Store the transaction type
+            user_id: user.id
           }
         ])
         .select()
