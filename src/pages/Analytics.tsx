@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useTransactions, CATEGORIES, Transaction } from "@/context/TransactionContext";
@@ -44,10 +45,10 @@ const Analytics: React.FC = () => {
   // Convert category totals to chart data with consistent colors
   const pieChartData = useMemo(() => {
     return Object.entries(categoryTotals)
-      .filter(([_, amount]) => amount > 0) // Only include credits (positive amounts)
+      .filter(([_, amount]) => amount < 0) // Only include debits (negative amounts)
       .map(([category, amount]) => ({
         name: category,
-        value: amount,
+        value: Math.abs(amount), // Use absolute value for display
         color: CATEGORY_COLORS[category] || "#000000"
       }));
   }, [categoryTotals]);
